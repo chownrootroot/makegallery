@@ -1,0 +1,148 @@
+#!/bin/bash
+
+#*****************************************************************
+# Create HTML-image gallery from file structure
+#*****************************************************************
+
+
+# Print html-code
+function write
+{
+	if [ -z "${title}" ]; then
+		title="Gallery"
+	fi
+
+	if [ -z "${prefix}" ]; then
+		prefix=""
+	fi
+
+	# Print head html-code
+	echo "<html>"
+	echo "<head>"
+	echo "<title>${title}</title>"
+	echo "</head>"
+	echo "<body>"
+	echo "<div align="center">"
+	echo "<h1>${title} ($(find ./*.jpg* | wc -l) images)</h1>"
+	echo "Created using makegallery by ${USER}@${HOSTNAME}<br>$(date)"
+	echo "</div>"
+	echo "<table>"
+	echo "	<tr>"
+
+	# Create gallery
+	count=0
+	for file in *.jpg*; do
+		if [ -f "${file}" ]; then
+			if [ ${count} -ge 5 ]; then
+				echo "	</tr>"
+				echo "	<tr>"
+				count=0
+			else
+				echo "		<td><a href="${prefix}${file}"><img src="${prefix}thumbs/${file}" width="90%" height="90%"></a>"
+				count=$((${count}+1))
+			fi
+		fi
+	done
+
+	# Print tail html-code
+	cat <<- _EOF_
+		</tr>
+	</table>
+	</body>
+	</html>
+	_EOF_
+}
+
+# Display help
+function usage
+{
+	clear
+	echo "Options:"
+	echo "-t | --thumb			Make thumbnails"
+	echo "-g | --gallery		Create html gallery"
+	echo "-n | --name			Name of the gallery"
+	echo "-p | --prefix			Path to images from html file"
+	echo "-f | --file			Target file"
+	echo "-y | --height			Thumb height"
+	echo "-x | --width			Thumb width"
+	echo "-h | --help			Display this text"
+}
+
+# Create thumbs
+function thumbs
+{
+	mkdir thumbs
+	total=$(find ./*.jpg* | wc -l)
+	number=0
+
+	if [ -z "${height}" ]; then
+		height=300
+	fi
+	
+	if [ -z "${width}" ]; then
+		width=200
+	fi
+
+	for file in *jpg*; do
+		number=$((number+1))	
+		echo -n "${number}/${total}: creating thumbs/${file}"
+		convert ./${file} -resize ${width}x${height}^ -gravity center -extent ${width}x${height} thumbs/${file}
+		echo "...done"
+	done
+	echo "Done!!!"
+}
+
+
+# Error if no args
+if [ -z "${1}" ]; then
+	echo "No args"
+	exit 1
+fi
+ 
+# Handle the args
+while [ "${1}" != "" ]; do
+	case ${1} in
+		-t | --thumb)		thumb=1
+							;;
+		-g | --gallery)		gallery=1
+							;;
+		-n | --name)		shift
+							title=${1}
+							;;
+		-p | --prefix)		shift
+							prefix=${1}
+							;;
+		-f | --file)		shift
+							target=${1}
+							;;
+		-y | --height)		shift
+							height=${1}
+							;;
+		-x | --width)		shift
+							width=${1}
+							;;
+		-h | --help)		help=1
+							;;
+	esac
+	shift
+done
+
+if [ "${help}" == 1 ]; then
+	usage
+	exit 0
+elif [ "${thumb}" == 1 ]; then
+	thumbs
+	exit 0
+elif [ "${gallery}" == 1 ]; then
+	if [ -z "${target}" ]; then
+		echo -n "State gallery title >"
+		read title
+		echo -n "State image file prefix (usually blank) >"
+		read prefix
+		echo -n "State target file >"
+		read target
+	fi
+	write > ${target}	
+fi
+
+exit 0
